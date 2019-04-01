@@ -10,6 +10,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -23,7 +24,7 @@ var mutex = &sync.RWMutex{}
 var dMutex = &sync.RWMutex{}
 
 // Authorised Returns a simple true/false answer to the question of whether or not the item is authorised.  If policy does not exist, it returns false and no error, but logs it
-func Authorised(ctx context.Context, policy string, data map[string]interface{}) (bool, error) {
+func Authorised(ctx context.Context, policy ast.Body, data map[string]interface{}) (bool, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Authorised")
 	defer span.Finish()
 
@@ -110,20 +111,25 @@ func loadCompiler(path string) error {
 	return nil
 }
 
-func runRego(ctx context.Context, query string, input map[string]interface{}) (rego.ResultSet, error) {
+func runRego(ctx context.Context, query ast.Body, input map[string]interface{}) (rego.ResultSet, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "runRego")
 	defer span.Finish()
 	// Fetch user from context, if exists.  If not, we don't mind -- some actions will be publicly possible:
 
 	compiler := GetCompiler(ctx)
 
+	m := metrics.New()
+
 	rego := rego.New(
-		rego.Query(query),
+		rego.ParsedQuery(query),
 		rego.Compiler(compiler),
 		rego.Input(input),
+		rego.Metrics(m),
 	)
 
-	return rego.Eval(ctx)
+	rs, err := rego.Eval(ctx)
+	fmt.Println("Dumping rego.Eval metrics:", m.All())
+	return rs, err
 }
 
 func setCompiler(compiler *ast.Compiler, documents map[string]interface{}) {

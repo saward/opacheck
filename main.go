@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
+
+	"github.com/open-policy-agent/opa/ast"
 )
 
 type Object struct {
@@ -34,14 +37,17 @@ func main() {
 func opaLoop(items *[]Object) {
 	replies := make(chan bool, len(*items))
 
+	query := ast.MustParseBody("data.api.entity.object.viewField")
+
 	// Check policy
 	for _, t := range *items {
 		go func(reply chan bool, item Object) {
-			_, err := Authorised(context.Background(), "data.api.entity.object.viewField", map[string]interface{}{"field": "name", "entity": t})
+			t0 := time.Now()
+			_, err := Authorised(context.Background(), query, map[string]interface{}{"field": "name", "entity": t})
 			if err != nil {
 				log.Printf("Error: %s", err)
 			}
-
+			fmt.Println("Took:", time.Since(t0))
 			reply <- true
 
 		}(replies, t)
