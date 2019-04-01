@@ -43,7 +43,7 @@ func opaLoop(items *[]Object) {
 	for _, t := range *items {
 		go func(reply chan bool, item Object) {
 			t0 := time.Now()
-			_, err := Authorised(context.Background(), query, map[string]interface{}{"field": "name", "entity": t})
+			_, err := Authorised(context.Background(), query, map[string]interface{}{"field": "name", "entity": item})
 			if err != nil {
 				log.Printf("Error: %s", err)
 			}
